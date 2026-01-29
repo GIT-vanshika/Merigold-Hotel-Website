@@ -1,0 +1,7 @@
+{
+  "name": "Marigold Hotels",
+  "description": "Luxury 5-star business hotel website for Marigold Hotels, featuring detailed room listings, dining options, event spaces, and guest facilities.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
