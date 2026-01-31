@@ -1,0 +1,139 @@
+
+import React, { useState, useRef, useEffect } from 'react';
+import { GoogleGenAI } from "@google/genai";
+import { MARIGOLD_DETAILS } from '../constants';
+
+const AIConcierge: React.FC = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([
+    { role: 'assistant', content: "Welcome to Marigold Hotels. I am your personal AI Concierge. How may I curate your luxury experience today?" }
+  ]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    const userMessage = input;
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setIsLoading(true);
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: [...messages, { role: 'user', content: userMessage }].map(m => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }]
+        })),
+        config: {
+          systemInstruction: `You are the Elite AI Concierge for "Marigold Hotels" in Hyderabad, a 5-star business-focused luxury hotel by Greenpark Group. 
+          Your tone is sophisticated, professional, welcoming, and world-class.
+          Details about the hotel:
+          - Location: Greenlands, Begumpet, Hyderabad.
+          - Rooms: Marigold Luxury, Premium, Studio, Royal Suite, Presidential Suite.
+          - Dining: Saffron Soul (World Cafe), Mekong (Pan Asian), Mystique (Lounge & Bar).
+          - Facilities: Soul Spa, Gymnasium, Rooftop Pool, Business Center.
+          - Attractions nearby: Charminar, Golconda Fort, Salar Jung Museum, Ramoji Film City.
+          Always recommend specific hotel features. If a guest wants a relaxing trip, suggest Soul Spa and the Royal Suite. If they are here for business, suggest the Studio room and Saffron Soul for quick lunches.
+          Keep responses concise but luxurious.`,
+          temperature: 0.7,
+        },
+      });
+
+      const assistantText = response.text || "I apologize, but I am momentarily unavailable to assist. Please contact our front desk at +91 40 6736 3636.";
+      setMessages(prev => [...prev, { role: 'assistant', content: assistantText }]);
+    } catch (error) {
+      console.error("AI Concierge Error:", error);
+      setMessages(prev => [...prev, { role: 'assistant', content: "I apologize, our digital systems are currently being refined. How else may I assist you?" }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed bottom-8 right-8 z-[100] font-sans">
+      {/* Concierge Toggle Button */}
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl ${isOpen ? 'bg-luxury-dark rotate-90' : 'bg-marigold-600 hover:bg-marigold-700'}`}
+      >
+        {isOpen ? (
+          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        ) : (
+          <div className="relative">
+             <span className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full animate-ping"></span>
+             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+             </svg>
+          </div>
+        )}
+      </button>
+
+      {/* Chat Window */}
+      <div className={`absolute bottom-20 right-0 w-80 md:w-96 h-[500px] bg-white shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] flex flex-col transition-all duration-500 origin-bottom-right ${isOpen ? 'scale-100 opacity-100' : 'scale-0 opacity-0 pointer-events-none'}`}>
+        {/* Header */}
+        <div className="bg-luxury-dark p-6 flex items-center gap-4 border-b border-marigold-900/20">
+          <div className="w-10 h-10 rounded-full bg-marigold-600 flex items-center justify-center text-white font-serif text-lg">M</div>
+          <div>
+            <h4 className="text-white text-sm font-serif tracking-widest uppercase">Luxury Concierge</h4>
+            <p className="text-marigold-400 text-[10px] font-bold uppercase tracking-widest animate-pulse">Online</p>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth bg-marigold-50/30">
+          {messages.map((m, idx) => (
+            <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[80%] p-4 text-xs leading-relaxed shadow-sm ${m.role === 'user' ? 'bg-marigold-600 text-white rounded-l-lg rounded-tr-lg' : 'bg-white border border-gray-100 text-luxury-dark rounded-r-lg rounded-tl-lg'}`}>
+                {m.content}
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-white p-4 rounded-r-lg rounded-tl-lg shadow-sm border border-gray-100">
+                <div className="flex gap-1">
+                  <div className="w-1 h-1 bg-marigold-500 rounded-full animate-bounce"></div>
+                  <div className="w-1 h-1 bg-marigold-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                  <div className="w-1 h-1 bg-marigold-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Input */}
+        <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-gray-100 flex gap-2">
+          <input 
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="How may I assist you?"
+            className="flex-1 text-xs py-3 px-4 focus:outline-none bg-gray-50 border-none rounded-sm"
+          />
+          <button 
+            type="submit"
+            className="p-3 bg-luxury-dark text-marigold-500 hover:text-marigold-400 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+            </svg>
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default AIConcierge;
